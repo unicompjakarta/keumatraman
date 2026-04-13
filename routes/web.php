@@ -54,7 +54,7 @@ Route::get('/students/{student}/bills', [DashboardController::class, 'studentBil
 Route::prefix('laporan')->name('financial-reports.')->group(function () {
     Route::get('/', [MonthlyFinancialReportController::class, 'index'])->name('index');
     Route::get('/bulanan', [MonthlyFinancialReportController::class, 'show'])->name('show');
-    Route::post('/header/store', [MonthlyFinancialReportController::class, 'storeHeader'])->name('header.store');
+    //Route::post('/header/store', [MonthlyFinancialReportController::class, 'storeHeader'])->name('header.store');
 });
 
 //Pengeluaran
