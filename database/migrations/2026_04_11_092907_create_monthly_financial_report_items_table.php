@@ -11,9 +11,7 @@ return new class extends Migration
         Schema::create('monthly_financial_report_items', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('monthly_financial_report_id')
-                ->constrained()
-                ->cascadeOnDelete();
+            $table->unsignedBigInteger('monthly_financial_report_id');
 
             $table->string('type'); // expense | proposal
             $table->date('entry_date')->nullable();
@@ -29,7 +27,12 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index(['type']);
+            $table->foreign('monthly_financial_report_id', 'mfri_report_fk')
+                ->references('id')
+                ->on('monthly_financial_reports')
+                ->onDelete('cascade');
+
+            $table->index('type');
         });
     }
 
