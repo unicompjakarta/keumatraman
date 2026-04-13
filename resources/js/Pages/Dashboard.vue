@@ -373,7 +373,7 @@ STUDENT
 
 const globalPrice = {
   media: 10000,
-  tabloid: 5000
+  tabloid: 10000
 }
 
 
@@ -383,7 +383,7 @@ const form = ref({
   name: '',
   phone: '',
   pic_id: '',
-  infak: 100000,
+  infak: '',
 
   media: {
     active: false,
@@ -404,7 +404,7 @@ function resetForm() {
     name: '',
     phone: '',
     pic_id: '',
-    infak: 100000,
+    infak: '',
 
     media: {
       active: false,
@@ -900,11 +900,11 @@ Infak
 </th>
 
 <th class="p-3">
-Media
+Media Umat
 </th>
 
 <th class="p-3">
-Tabloid
+Tabloid Alwa'ie
 </th>
 
 <th class="p-3">
