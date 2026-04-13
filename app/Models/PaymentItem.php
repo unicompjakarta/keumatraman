@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentItem extends Model
 {
+
+    protected $fillable = [
+        'payment_id',
+        'bill_item_id',
+        'amount',
+    ];
+
     public function payment()
 {
     return $this->belongsTo(Payment::class);

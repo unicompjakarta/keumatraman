@@ -21,40 +21,13 @@ const now = new Date()
 
 const filter = ref({
   month: now.getMonth() + 1,
-  year: now.getFullYear(),
-  q: '',
-  status: '',
+  year: now.getFullYear()
 })
 
 function applyFilter() {
   router.get('/dashboard', filter.value, {
     preserveState: true
   })
-}
-
-function exportXls() {
-  const params = new URLSearchParams({
-    month: String(filter.value.month),
-    year: String(filter.value.year),
-    q: filter.value.q || '',
-    status: filter.value.status || '',
-  })
-  window.location.href = `/dashboard/export-xls?${params.toString()}`
-}
-
-function logout() {
-  router.post('/logout')
-}
-
-async function excludeBill(bill) {
-  if (!confirm(`Hapus ${bill?.student?.name || 'siswa'} dari tabel tagihan bulan ini?`)) return
-
-  try {
-    await axios.delete(`/bills/${bill.id}`)
-    applyFilter()
-  } catch (e) {
-    alert(e.response?.data?.message || 'Gagal hapus dari tabel tagihan')
-  }
 }
 
 /* =========================
@@ -709,24 +682,6 @@ function hasPayment(bill) {
   return Number(bill?.total_paid || 0) > 0
 }
 
-
-//Buat siswa jadi unique
-const uniqueBills = computed(() => {
-  const map = new Map()
-
-  for (const bill of props.bills || []) {
-    const nameKey = (bill.student?.name || '').trim().toLowerCase()
-    const phoneKey = String(bill.student?.phone || '').replace(/\D/g, '')
-    const key = `${nameKey}__${phoneKey}` || `student-${bill.student?.id || bill.id}`
-
-    if (!map.has(key)) {
-      map.set(key, bill)
-    }
-  }
-
-  return Array.from(map.values())
-})
-
 </script>
 
 <template>
@@ -737,39 +692,19 @@ const uniqueBills = computed(() => {
 
 <!-- HEADER -->
 
-<div class="flex justify-between items-center gap-3">
+<div class="flex justify-between">
 
 <h1 class="font-bold text-lg">
 Dashboard
 </h1>
 
-<div class="flex gap-2">
-  <button
-    type="button"
-    @click="logout"
-    class="bg-gray-800 text-white px-3 py-2 rounded"
-  >
-    Logout
-  </button>
-
-  <button
-    type="button"
-    @click="exportXls"
-    class="bg-emerald-600 text-white px-3 py-2 rounded"
-  >
-    Export Data XLS
-  </button>
-
-  <button
-    type="button"
-    @click="resetForm(); showAdd = true"
-    class="bg-blue-500 text-white px-3 py-2 rounded"
-  >
+<button
+@click="resetForm(); showAdd = true"
+class="bg-blue-500 text-white px-3 py-2 rounded">
 
 + Siswa
 
-  </button>
-</div>
+</button>
 
 </div>
 
@@ -829,7 +764,7 @@ Tunggakan
 
 <!-- FILTER -->
 
-<div class="flex flex-wrap gap-2 items-center">
+<div class="flex gap-2">
 
 <select
 v-model="filter.month"
@@ -851,29 +786,14 @@ v-model="filter.year"
 @change="applyFilter"
 class="border px-3 py-2 rounded">
 
-<option v-for="y in [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]" :key="y" :value="y">
-  {{ y }}
+<option>
+2025
 </option>
 
-</select>
+<option>
+2026
+</option>
 
-<input
-  v-model="filter.q"
-  @keyup.enter="applyFilter"
-  type="text"
-  placeholder="Cari nama..."
-  class="border px-3 py-2 rounded w-64"
-/>
-
-<select
-  v-model="filter.status"
-  @change="applyFilter"
-  class="border px-3 py-2 rounded"
->
-  <option value="">Semua status</option>
-  <option value="belum_bayar">Belum bayar</option>
-  <option value="partial">Partial</option>
-  <option value="lunas">Lunas</option>
 </select>
 
 </div>
@@ -887,9 +807,6 @@ class="border px-3 py-2 rounded">
 <thead class="bg-gray-100">
 
 <tr>
-    <th class="p-3 text-center">
-No
-</th>
 
 <th class="p-3">
 Nama
@@ -924,108 +841,96 @@ Aksi
 </thead>
 
 <tbody>
-  <tr
-    v-for="bill,index in uniqueBills"
-    :key="bill.id"
-    class="border-t"
+
+<tr
+v-for="bill in bills"
+:key="bill.id"
+class="border-t">
+
+<td class="p-3">
+<!-- {{ bill.student.name }} -->
+<button
+    type="button"
+    @click="openStudentBillsModal(bill.student.id)"
+    class="text-blue-600 hover:underline text-left"
   >
+    {{ bill.student.name }}
+  </button>
 
-  <td class="p-3 text-center font-medium">
-{{ index + 1 }}
 </td>
-    <td class="p-3">
-      <button
-        type="button"
-        @click="openStudentBillsModal(bill.student.id)"
-        class="text-blue-600 hover:underline text-left"
-      >
-        {{ bill.student.name }}
-      </button>
-    </td>
 
-    <td class="p-3">
-      {{ formatRupiah(getItem(bill, 'infak')?.subtotal) }}
-    </td>
+<td class="p-3">
+{{ formatRupiah(getItem(bill,'infak')?.subtotal) }}
+</td>
 
-    <td class="p-3">
-      {{ displayRupiah(getTotalItem(getItem(bill, 'media'))) }}
-      <span
-        v-if="getItem(bill, 'media')?.qty > 0"
-        class="text-xs text-gray-500"
-      >
-        ({{ getItem(bill, 'media')?.qty }})
-      </span>
-    </td>
+<td class="p-3" >
+    {{ displayRupiah(getTotalItem(getItem(bill, 'media'))) }}
+    <span v-if="getItem(bill,'media')?.qty > 0" class="text-xs text-gray-500">
+({{ getItem(bill,'media')?.qty }})
+</span>
+</td>
 
-    <td class="p-3">
-      {{ displayRupiah(getTotalItem(getItem(bill, 'tabloid'))) }}
-      <span
-        v-if="getItem(bill, 'tabloid')?.qty > 0"
-        class="text-xs text-gray-500"
-      >
-        ({{ getItem(bill, 'tabloid')?.qty }})
-      </span>
-    </td>
+<td class="p-3">
 
-    <td class="p-3">
-      {{ bill.student.pic?.name }}
-    </td>
+{{ displayRupiah(getTotalItem(getItem(bill,'tabloid'))) }}
+<span v-if="getItem(bill,'tabloid')?.qty > 0" class="text-xs text-gray-500">
+({{ getItem(bill,'tabloid')?.qty }})
+</span>
+</td>
 
-    <td class="p-3">
-      <button
-        type="button"
-        class="font-medium underline-offset-2 hover:underline"
-        :class="{
-          'text-green-600': getStatus(bill) === 'Lunas',
-          'text-yellow-600': getStatus(bill) === 'Partial',
-          'text-red-600': getStatus(bill) === 'Belum Bayar'
-        }"
-        @click="openPaymentDetail(bill)"
-      >
-        {{ getStatus(bill) }}
-      </button>
-    </td>
+<td class="p-3">
+{{ bill.student.pic?.name }}
+</td>
 
-    <td class="p-3 flex gap-2">
-      <button
-        type="button"
-        @click="openPay(bill)"
-        :disabled="isBillLunas(bill)"
-        :class="[
-          'px-2 py-1 rounded text-white',
-          isBillLunas(bill)
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-green-500'
-        ]"
-      >
-        Bayar
-      </button>
+<td class="p-3">
 
-      <button
-        type="button"
-        @click="editStudent(bill)"
-        class="bg-blue-500 text-white px-2 py-1 rounded"
-      >
-        Edit
-      </button>
+    <button
+  type="button"
+  class="font-medium underline-offset-2 hover:underline"
+  :class="{
+    'text-green-600': getStatus(bill) === 'Lunas',
+    'text-yellow-600': getStatus(bill) === 'Partial',
+    'text-red-600': getStatus(bill) === 'Belum Bayar'
+  }"
+  @click="openPaymentDetail(bill)"
+>
+  {{ getStatus(bill) }}
+</button>
 
-      <a
-        :href="generateWA(bill)"
-        target="_blank"
-        class="bg-yellow-500 text-white px-2 py-1 rounded"
-      >
-        Tagih
-      </a>
+</td>
 
-      <button
-        type="button"
-        @click="excludeBill(bill)"
-        class="bg-red-600 text-white px-2 py-1 rounded"
-      >
-        Hapus
-      </button>
-    </td>
-  </tr>
+<td class="p-3 flex gap-2">
+    <button
+  type="button"
+  @click="openPay(bill)"
+  :disabled="isBillLunas(bill)"
+  :class="[
+    'px-2 py-1 rounded text-white',
+    isBillLunas(bill)
+      ? 'bg-gray-400 cursor-not-allowed'
+      : 'bg-green-500'
+  ]"
+>
+  Bayar
+</button>
+
+<button
+  type="button"
+  @click="editStudent(bill)"
+  class="bg-blue-500 text-white px-2 py-1 rounded">
+  Edit
+</button>
+
+<a :href="generateWA(bill)" target="_blank" class="bg-yellow-500 text-white px-2 py-1 rounded">
+
+Tagih
+
+</a>
+
+</td>
+
+</tr>
+
 </tbody>
 
 </table>

@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('bill_items', function (Blueprint $table) {
-            $table->decimal('paid_amount', 15, 2)->default(0);
+        Schema::table('payments', function (Blueprint $table) {
+            $table->text('note')->nullable()->after('payment_method_id');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('bill_items', function (Blueprint $table) {
-            //
+        Schema::table('payments', function (Blueprint $table) {
+            $table->dropColumn('note');
         });
     }
 };

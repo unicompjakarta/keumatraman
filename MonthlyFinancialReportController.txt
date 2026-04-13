@@ -1,0 +1,299 @@
+MonthlyFinancialReportController
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Branch;
+use App\Models\MonthlyFinancialReport;
+use App\Models\MonthlyFinancialReportItem;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class MonthlyFinancialReportController extends Controller
+{
+    public function index(Request $request)
+    {
+        return Inertia::render('MonthlyFinancialReports/Index', $this->buildPageData($request));
+    }
+
+    public function expensePage(Request $request)
+    {
+        return Inertia::render('Pengeluaran/Index', $this->buildPageData($request));
+    }
+
+    public function show(Request $request)
+    {
+        return Inertia::render('MonthlyFinancialReports/Show', $this->buildPageData($request));
+    }
+
+    public function storeOrUpdateHeader(Request $request)
+    {
+        $data = $request->validate([
+            'branch_id' => ['required', 'exists:branches,id'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'year' => ['required', 'integer', 'min:2024'],
+
+            'employee_total' => ['nullable', 'integer', 'min:0'],
+            'employee_contributor_total' => ['nullable', 'integer', 'min:0'],
+
+            'monthly_target_amount' => ['nullable', 'numeric', 'min:0'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+            'central_fund_received' => ['nullable', 'numeric', 'min:0'],
+
+            'total_sent_amount' => ['nullable', 'numeric', 'min:0'],
+            'mandatory_amount' => ['nullable', 'numeric', 'min:0'],
+            'sunnah_amount' => ['nullable', 'numeric', 'min:0'],
+
+            'sent_date' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $report = MonthlyFinancialReport::firstOrNew([
+            'branch_id' => $data['branch_id'],
+            'month' => $data['month'],
+            'year' => $data['year'],
+        ]);
+
+        if (! $report->exists) {
+            $previousMonth = $data['month'] === 1 ? 12 : $data['month'] - 1;
+            $previousYear = $data['month'] === 1 ? $data['year'] - 1 : $data['year'];
+
+            $previousReport = MonthlyFinancialReport::where('branch_id', $data['branch_id'])
+                ->where('month', $previousMonth)
+                ->where('year', $previousYear)
+                ->first();
+
+            $report->opening_balance = $previousReport?->closing_balance ?? 0;
+        }
+
+        $report->fill([
+            'employee_total' => $data['employee_total'] ?? 0,
+            'employee_contributor_total' => $data['employee_contributor_total'] ?? 0,
+            'monthly_target_amount' => $data['monthly_target_amount'] ?? 0,
+            'opening_balance' => $data['opening_balance'] ?? $report->opening_balance ?? 0,
+            'central_fund_received' => $data['central_fund_received'] ?? 0,
+            'total_sent_amount' => $data['total_sent_amount'] ?? 0,
+            'mandatory_amount' => $data['mandatory_amount'] ?? 0,
+            'sunnah_amount' => $data['sunnah_amount'] ?? 0,
+            'sent_date' => $data['sent_date'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        $report->save();
+        $report->recalculateClosingBalance();
+
+        return redirect()->route('financial-reports.index', [
+            'branch_id' => $report->branch_id,
+            'month' => $report->month,
+            'year' => $report->year,
+        ])->with('success', 'Header laporan berhasil disimpan');
+    }
+
+    public function storeExpense(Request $request)
+    {
+        $data = $request->validate([
+            'branch_id' => ['required', 'exists:branches,id'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'year' => ['required', 'integer', 'min:2024'],
+
+            'entry_date' => ['required', 'date'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $report = $this->findOrCreateReport(
+            $data['branch_id'],
+            $data['month'],
+            $data['year']
+        );
+
+        MonthlyFinancialReportItem::create([
+            'monthly_financial_report_id' => $report->id,
+            'type' => 'expense',
+            'entry_date' => $data['entry_date'],
+            'target_month' => null,
+            'target_year' => null,
+            'category' => $data['category'] ?? null,
+            'description' => $data['description'],
+            'amount' => $data['amount'],
+            'sort_order' => $data['sort_order'] ?? null,
+        ]);
+
+        $report->recalculateClosingBalance();
+
+        return redirect()->route('pengeluaran.index', [
+            'branch_id' => $report->branch_id,
+            'month' => $report->month,
+            'year' => $report->year,
+        ])->with('success', 'Pengeluaran berhasil ditambahkan');
+    }
+
+    public function storeProposal(Request $request)
+    {
+        $data = $request->validate([
+            'branch_id' => ['required', 'exists:branches,id'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'year' => ['required', 'integer', 'min:2024'],
+
+            'target_month' => ['required', 'integer', 'between:1,12'],
+            'target_year' => ['required', 'integer', 'min:2024'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $report = $this->findOrCreateReport(
+            $data['branch_id'],
+            $data['month'],
+            $data['year']
+        );
+
+        MonthlyFinancialReportItem::create([
+            'monthly_financial_report_id' => $report->id,
+            'type' => 'proposal',
+            'entry_date' => null,
+            'target_month' => $data['target_month'],
+            'target_year' => $data['target_year'],
+            'category' => $data['category'] ?? null,
+            'description' => $data['description'],
+            'amount' => $data['amount'],
+            'sort_order' => $data['sort_order'] ?? null,
+        ]);
+
+        return redirect()->route('pengeluaran.index', [
+            'branch_id' => $report->branch_id,
+            'month' => $report->month,
+            'year' => $report->year,
+        ])->with('success', 'Pengajuan berhasil ditambahkan');
+    }
+
+    public function destroyItem(MonthlyFinancialReportItem $item, Request $request)
+    {
+        $report = $item->report;
+
+        $branchId = $report->branch_id;
+        $month = $report->month;
+        $year = $report->year;
+
+        $item->delete();
+        $report->recalculateClosingBalance();
+
+        $backTo = $request->get('from') === 'laporan'
+            ? 'financial-reports.index'
+            : 'pengeluaran.index';
+
+        return redirect()->route($backTo, [
+            'branch_id' => $branchId,
+            'month' => $month,
+            'year' => $year,
+        ])->with('success', 'Item berhasil dihapus');
+    }
+
+    private function buildPageData(Request $request): array
+{
+    $branches = Branch::orderBy('name')->get();
+
+    $branchId = $request->filled('branch_id')
+        ? (int) $request->branch_id
+        : $branches->first()?->id;
+
+    $month = $request->filled('month')
+        ? (int) $request->month
+        : now()->month;
+
+    $year = $request->filled('year')
+        ? (int) $request->year
+        : now()->year;
+
+    $report = null;
+    $items = collect();
+
+    if ($branchId) {
+        $report = MonthlyFinancialReport::with([
+            'branch',
+            'items' => fn ($q) => $q->orderByRaw('COALESCE(sort_order, 999999), id'),
+        ])
+        ->where('branch_id', $branchId)
+        ->where('month', $month)
+        ->where('year', $year)
+        ->first();
+
+        $items = collect($report?->items ?? []);
+    }
+
+    return [
+        'branches' => $branches,
+
+        'filters' => [
+            'branch_id' => $branchId,
+            'month' => $month,
+            'year' => $year,
+        ],
+
+        'months' => collect(range(1, 12))->map(fn ($m) => [
+            'value' => $m,
+            'label' => str_pad($m, 2, '0', STR_PAD_LEFT),
+        ])->values(),
+
+        'years' => collect(range(now()->year - 3, now()->year + 1))
+            ->map(fn ($y) => [
+                'value' => $y,
+                'label' => (string) $y,
+            ])
+            ->values(),
+
+        'report' => $report,
+
+        'pengeluaranList' => $items
+            ->where('type', 'expense')
+            ->values()
+            ->all(),
+
+        'pengajuanList' => $items
+            ->where('type', 'proposal')
+            ->values()
+            ->all(),
+    ];
+}
+
+    private function findOrCreateReport(int $branchId, int $month, int $year): MonthlyFinancialReport
+    {
+        $report = MonthlyFinancialReport::firstOrNew([
+            'branch_id' => $branchId,
+            'month' => $month,
+            'year' => $year,
+        ]);
+
+        if (! $report->exists) {
+            $previousMonth = $month === 1 ? 12 : $month - 1;
+            $previousYear = $month === 1 ? $year - 1 : $year;
+
+            $previousReport = MonthlyFinancialReport::where('branch_id', $branchId)
+                ->where('month', $previousMonth)
+                ->where('year', $previousYear)
+                ->first();
+
+            $report->fill([
+                'employee_total' => 0,
+                'employee_contributor_total' => 0,
+                'monthly_target_amount' => 0,
+                'opening_balance' => $previousReport?->closing_balance ?? 0,
+                'central_fund_received' => 0,
+                'total_sent_amount' => 0,
+                'mandatory_amount' => 0,
+                'sunnah_amount' => 0,
+                'sent_date' => null,
+                'closing_balance' => $previousReport?->closing_balance ?? 0,
+                'status' => 'draft',
+                'is_locked' => false,
+            ]);
+
+            $report->save();
+        }
+
+        return $report;
+    }
+}

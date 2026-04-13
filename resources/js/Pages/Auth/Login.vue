@@ -95,6 +95,16 @@ const submit = () => {
                     Log in
                 </PrimaryButton>
             </div>
+
+            <div class="mt-4 text-sm text-gray-600">
+                Belum punya akun?
+                <Link
+                    :href="route('register')"
+                    class="underline hover:text-gray-900"
+                >
+                    Register
+                </Link>
+            </div>
         </form>
     </GuestLayout>
 </template>
