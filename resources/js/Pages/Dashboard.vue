@@ -150,7 +150,21 @@ HELPERS
 ========================= */
 
 function formatRupiah(val) {
-  return 'Rp ' + Number(val || 0).toLocaleString()
+  const n = toNumber(val)
+  return 'Rp ' + n.toLocaleString()
+}
+
+function toNumber(val) {
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return Number.isFinite(val) ? val : 0
+  if (typeof val === 'string') {
+    const cleaned = val.trim().replace(/[^\d.-]/g, '')
+    if (cleaned === '' || cleaned === '-' || cleaned === '.' || cleaned === '-.') return 0
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : 0
+  }
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
 }
 
 function getItem(bill, name) {
@@ -169,10 +183,13 @@ function getTotalItem(item) {
 
 function getStatus(bill) {
 
-  if (!bill.total_paid)
+  const paid = toNumber(bill?.total_paid)
+  const amount = toNumber(bill?.total_amount)
+
+  if (paid <= 0)
     return 'Belum Bayar'
 
-  if (bill.total_paid < bill.total_amount)
+  if (paid < amount)
     return 'Partial'
 
   return 'Lunas'
@@ -184,20 +201,20 @@ SUMMARY
 
 const totalBill = computed(() =>
   props.bills.reduce(
-    (s, b) => s + (b.total_amount || 0),
+    (s, b) => s + toNumber(b?.total_amount),
     0
   )
 )
 
 const totalPaid = computed(() =>
   props.bills.reduce(
-    (s, b) => s + (b.total_paid || 0),
+    (s, b) => s + toNumber(b?.total_paid),
     0
   )
 )
 
 const totalTunggakan = computed(() =>
-  totalBill.value - totalPaid.value
+  toNumber(totalBill.value) - toNumber(totalPaid.value)
 )
 
 const totalSiswa = computed(() =>
