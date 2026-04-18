@@ -417,9 +417,14 @@ class MonthlyFinancialReportController extends Controller
             'entry_date' => ['required', 'date'],
             'category' => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['required'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $amount = $this->normalizeIdrAmount($validated['amount'] ?? null);
+        if ($amount < 0) {
+            abort(422, 'amount minimal 0');
+        }
 
         $report = $this->findOrCreateReport(
             (int) $validated['branch_id'],
@@ -435,7 +440,7 @@ class MonthlyFinancialReportController extends Controller
             'target_year' => null,
             'category' => $validated['category'] ?? null,
             'description' => $validated['description'],
-            'amount' => $validated['amount'],
+            'amount' => $amount,
             'sort_order' => $validated['sort_order'] ?? null,
         ]);
 
@@ -458,9 +463,14 @@ class MonthlyFinancialReportController extends Controller
             'target_year' => ['required', 'integer', 'min:2000'],
             'category' => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['required'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $amount = $this->normalizeIdrAmount($validated['amount'] ?? null);
+        if ($amount < 0) {
+            abort(422, 'amount minimal 0');
+        }
 
         $report = $this->findOrCreateReport(
             (int) $validated['branch_id'],
@@ -476,7 +486,7 @@ class MonthlyFinancialReportController extends Controller
             'target_year' => (int) $validated['target_year'],
             'category' => $validated['category'] ?? null,
             'description' => $validated['description'],
-            'amount' => $validated['amount'],
+            'amount' => $amount,
             'sort_order' => $validated['sort_order'] ?? null,
         ]);
 
@@ -599,5 +609,33 @@ class MonthlyFinancialReportController extends Controller
         $report->save();
 
         return $report;
+    }
+
+    private function normalizeIdrAmount(mixed $value): float
+    {
+        if ($value === null) {
+            return 0;
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return 0;
+        }
+
+        // Handle common thousand separators for IDR input, e.g. "400.000" or "1.234.567"
+        if (preg_match('/^\d{1,3}(\.\d{3})+$/', $raw)) {
+            return (float) str_replace('.', '', $raw);
+        }
+
+        if (preg_match('/^\d{1,3}(,\d{3})+$/', $raw)) {
+            return (float) str_replace(',', '', $raw);
+        }
+
+        // If comma is used as decimal separator (e.g. "10,5"), convert to dot.
+        if (str_contains($raw, ',') && ! str_contains($raw, '.')) {
+            $raw = str_replace(',', '.', $raw);
+        }
+
+        return (float) $raw;
     }
 }
