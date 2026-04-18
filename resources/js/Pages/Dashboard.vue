@@ -199,26 +199,121 @@ function getStatus(bill) {
 SUMMARY
 ========================= */
 
-const totalBill = computed(() =>
-  props.bills.reduce(
-    (s, b) => s + toNumber(b?.total_amount),
-    0
-  )
-)
-
-const totalPaid = computed(() =>
-  props.bills.reduce(
-    (s, b) => s + toNumber(b?.total_paid),
-    0
-  )
-)
-
-const totalTunggakan = computed(() =>
-  toNumber(totalBill.value) - toNumber(totalPaid.value)
-)
-
 const totalSiswa = computed(() =>
   props.bills.length
+)
+
+/* =========================
+SUMMARY FILTER (CLIENT SIDE)
+========================= */
+
+const summaryFilter = ref({
+  month: filter.value.month,
+  year: filter.value.year,
+})
+
+watch(
+  () => [filter.value.month, filter.value.year],
+  ([month, year]) => {
+    // Keep summary filter in sync with main filter by default
+    summaryFilter.value.month = month
+    summaryFilter.value.year = year
+  }
+)
+
+const summaryBills = computed(() => {
+  const month = Number(summaryFilter.value.month)
+  const year = Number(summaryFilter.value.year)
+
+  return (props.bills || []).filter(b => {
+    // If backend doesn't provide month/year on bill, fallback to include all
+    if (b?.month === undefined || b?.year === undefined) return true
+    return Number(b.month) === month && Number(b.year) === year
+  })
+})
+
+const totalSiswaSummary = computed(() => {
+  const set = new Set()
+  for (const bill of summaryBills.value || []) {
+    const id = bill?.student?.id
+    if (id !== null && id !== undefined) {
+      set.add(`id:${id}`)
+      continue
+    }
+    const nameKey = (bill?.student?.name || '').trim().toLowerCase()
+    const phoneKey = String(bill?.student?.phone || '').replace(/\D/g, '')
+    set.add(`np:${nameKey}__${phoneKey}`)
+  }
+  return set.size
+})
+
+function getBillItemSubtotalByName(bill, name) {
+  const item = getItem(bill, name)
+  if (!item) return 0
+  // Prefer subtotal from backend; fallback to qty*price if needed
+  const subtotal = toNumber(item.subtotal)
+  if (subtotal > 0) return subtotal
+  return toNumber(getTotalItem(item))
+}
+
+function getBillItemPaidByName(bill, name) {
+  const item = getItem(bill, name)
+  if (!item) return 0
+  return toNumber(item.paid_amount)
+}
+
+const totalTagihanInfak = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemSubtotalByName(b, 'infak'),
+    0
+  )
+)
+
+const totalTagihanMedia = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemSubtotalByName(b, 'media'),
+    0
+  )
+)
+
+const totalTagihanTabloid = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemSubtotalByName(b, 'tabloid'),
+    0
+  )
+)
+
+const totalDibayarInfak = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemPaidByName(b, 'infak'),
+    0
+  )
+)
+
+const totalDibayarMedia = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemPaidByName(b, 'media'),
+    0
+  )
+)
+
+const totalDibayarTabloid = computed(() =>
+  (summaryBills.value || []).reduce(
+    (s, b) => s + getBillItemPaidByName(b, 'tabloid'),
+    0
+  )
+)
+
+const tunggakanInfak = computed(() =>
+  toNumber(totalTagihanInfak.value) - toNumber(totalDibayarInfak.value)
+)
+
+const tunggakanMedia = computed(() =>
+  toNumber(totalTagihanMedia.value) - toNumber(totalDibayarMedia.value)
+)
+
+const tunggakanTabloid = computed(() =>
+  toNumber(totalTagihanTabloid.value) - toNumber(totalDibayarTabloid.value)
 )
 
 /* =========================
@@ -792,7 +887,38 @@ Dashboard
 
 <!-- SUMMARY -->
 
-<div class="grid grid-cols-4 gap-3">
+<div class="bg-white rounded-xl shadow">
+  <div class="flex flex-wrap items-center justify-between gap-2 p-3 border-b">
+    <div class="font-semibold text-sm">Ringkasan</div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-xs text-gray-500">Bulan/Tahun</div>
+
+      <select
+        v-model="summaryFilter.month"
+        class="border px-3 py-2 rounded min-w-40 text-sm"
+      >
+        <option v-for="m in 12" :key="m" :value="m">
+          {{ monthNames[m - 1] }}
+        </option>
+      </select>
+
+      <select
+        v-model="summaryFilter.year"
+        class="border px-3 py-2 rounded min-w-28 text-sm"
+      >
+        <option
+          v-for="y in [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]"
+          :key="y"
+          :value="y"
+        >
+          {{ y }}
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3">
 
 <div class="bg-white p-3 rounded shadow">
 
@@ -801,7 +927,7 @@ Jumlah Siswa
 </div>
 
 <div class="font-bold text-lg">
-{{ totalSiswa }}
+{{ totalSiswaSummary }}
 </div>
 
 </div>
@@ -809,39 +935,71 @@ Jumlah Siswa
 <div class="bg-white p-3 rounded shadow">
 
 <div class="text-xs">
-Total Tagihan
+Total Tagihan (Rinci)
 </div>
 
-<div class="font-bold text-lg">
-{{ formatRupiah(totalBill) }}
-</div>
-
-</div>
-
-<div class="bg-green-100 p-3 rounded shadow">
-
-<div class="text-xs">
-Total Dibayar
-</div>
-
-<div class="font-bold text-lg">
-{{ formatRupiah(totalPaid) }}
-</div>
-
-</div>
-
-<div class="bg-red-100 p-3 rounded shadow">
-
-<div class="text-xs">
-Tunggakan
-</div>
-
-<div class="font-bold text-lg">
-{{ formatRupiah(totalTunggakan) }}
+<div class="mt-2 space-y-1 text-sm">
+  <div class="flex items-center justify-between gap-3">
+    <div class="text-gray-600">Infak</div>
+    <div class="font-semibold">{{ formatRupiah(totalTagihanInfak) }}</div>
+  </div>
+  <div class="flex items-center justify-between gap-3">
+    <div class="text-gray-600">Media</div>
+    <div class="font-semibold">{{ formatRupiah(totalTagihanMedia) }}</div>
+  </div>
+  <div class="flex items-center justify-between gap-3">
+    <div class="text-gray-600">Tabloid</div>
+    <div class="font-semibold">{{ formatRupiah(totalTagihanTabloid) }}</div>
+  </div>
 </div>
 
 </div>
 
+<div class="bg-white p-3 rounded shadow">
+
+<div class="text-xs">Dibayar & Tunggakan</div>
+
+<div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+  <div class="rounded-lg bg-green-50 p-2">
+    <div class="text-[11px] text-gray-600 mb-1">Total Dibayar</div>
+    <div class="space-y-1">
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Infak</div>
+        <div class="font-semibold text-green-700">{{ formatRupiah(totalDibayarInfak) }}</div>
+      </div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Media</div>
+        <div class="font-semibold text-green-700">{{ formatRupiah(totalDibayarMedia) }}</div>
+      </div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Tabloid</div>
+        <div class="font-semibold text-green-700">{{ formatRupiah(totalDibayarTabloid) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-lg bg-red-50 p-2">
+    <div class="text-[11px] text-gray-600 mb-1">Tunggakan</div>
+    <div class="space-y-1">
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Infak</div>
+        <div class="font-semibold text-red-700">{{ formatRupiah(tunggakanInfak) }}</div>
+      </div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Media</div>
+        <div class="font-semibold text-red-700">{{ formatRupiah(tunggakanMedia) }}</div>
+      </div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-gray-600">Tabloid</div>
+        <div class="font-semibold text-red-700">{{ formatRupiah(tunggakanTabloid) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+</div>
 </div>
 
 <!-- FILTER -->
@@ -851,13 +1009,13 @@ Tunggakan
 <select
 v-model="filter.month"
 @change="applyFilter"
-class="border px-3 py-2 rounded">
+class="border px-3 py-2 rounded min-w-36">
 
 <option
 v-for="m in 12"
 :value="m">
 
-{{ m }}
+{{ monthNames[m - 1] }}
 
 </option>
 
@@ -866,7 +1024,7 @@ v-for="m in 12"
 <select
 v-model="filter.year"
 @change="applyFilter"
-class="border px-3 py-2 rounded">
+class="border px-3 py-2 rounded min-w-28">
 
 <option v-for="y in [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]" :key="y" :value="y">
   {{ y }}

@@ -109,6 +109,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="toolbar">
         <a
@@ -123,7 +124,7 @@
 
     <div class="page">
         <div class="title">
-            <h1>Laporan Bulanan</h1>
+            <h1>LAPORAN BULAN {{ \Carbon\Carbon::parse($year . '-' . $month . '-01')->translatedFormat('F Y') }}</h1>
             <h2>{{ $branch->name }}</h2>
         </div>
 
