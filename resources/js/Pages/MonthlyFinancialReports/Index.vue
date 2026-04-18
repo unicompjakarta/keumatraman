@@ -98,6 +98,15 @@ function formatDate(value) {
   year: "numeric",
 })
 }
+
+function deleteReportItem(item) {
+  if (!item?.id) return
+  if (!confirm('Hapus data ini?')) return
+
+  router.delete(route('financial-reports.items.destroy', item.id), {
+    preserveScroll: true,
+  })
+}
 </script>
 
 <template>
@@ -236,6 +245,7 @@ function formatDate(value) {
               <th class="p-3 text-left">Kategori</th>
               <th class="p-3 text-left">Uraian</th>
               <th class="p-3 text-right">Jumlah</th>
+              <th class="p-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -245,9 +255,18 @@ function formatDate(value) {
               <td class="p-3">{{ item.category || '-' }}</td>
               <td class="p-3">{{ item.description }}</td>
               <td class="p-3 text-right">{{ formatRupiah(item.amount) }}</td>
+              <td class="p-3 text-right">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  @click="deleteReportItem(item)"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
             <tr v-if="expenseItems.length === 0">
-              <td colspan="5" class="p-4 text-center text-gray-500">Belum ada data pengeluaran</td>
+              <td colspan="6" class="p-4 text-center text-gray-500">Belum ada data pengeluaran</td>
             </tr>
           </tbody>
         </table>
@@ -265,6 +284,7 @@ function formatDate(value) {
               <th class="p-3 text-left">Kategori</th>
               <th class="p-3 text-left">Uraian</th>
               <th class="p-3 text-right">Jumlah</th>
+              <th class="p-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -274,9 +294,18 @@ function formatDate(value) {
               <td class="p-3">{{ item.category || '-' }}</td>
               <td class="p-3">{{ item.description }}</td>
               <td class="p-3 text-right">{{ formatRupiah(item.amount) }}</td>
+              <td class="p-3 text-right">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  @click="deleteReportItem(item)"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
             <tr v-if="proposalItems.length === 0">
-              <td colspan="5" class="p-4 text-center text-gray-500">Belum ada data pengajuan</td>
+              <td colspan="6" class="p-4 text-center text-gray-500">Belum ada data pengajuan</td>
             </tr>
           </tbody>
         </table>

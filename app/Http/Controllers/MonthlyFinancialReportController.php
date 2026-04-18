@@ -121,15 +121,18 @@ class MonthlyFinancialReportController extends Controller
                 'notes' => $report?->notes,
             ];
 
-            $items = collect($report?->items ?? []);
-
-            $expenses = $items
+            // Pengeluaran should follow selected month/year
+            $expenses = collect($report?->items ?? [])
                 ->where('type', 'expense')
                 ->values();
 
-            $proposals = $items
+            $proposals = MonthlyFinancialReportItem::query()
+                ->whereHas('report', fn ($q) => $q->where('branch_id', $branchId))
                 ->where('type', 'proposal')
-                ->values();
+                ->orderByDesc('target_year')
+                ->orderByDesc('target_month')
+                ->orderByRaw('COALESCE(sort_order, 999999), id')
+                ->get();
         }
 
         return Inertia::render('MonthlyFinancialReports/Index', [
@@ -370,15 +373,18 @@ class MonthlyFinancialReportController extends Controller
                 ->where('year', $year)
                 ->first();
 
-            $items = collect($report?->items ?? []);
-
-            $pengeluaranList = $items
+            // Pengeluaran should follow selected month/year
+            $pengeluaranList = collect($report?->items ?? [])
                 ->where('type', 'expense')
                 ->values();
 
-            $pengajuanList = $items
+            $pengajuanList = MonthlyFinancialReportItem::query()
+                ->whereHas('report', fn ($q) => $q->where('branch_id', $branchId))
                 ->where('type', 'proposal')
-                ->values();
+                ->orderByDesc('target_year')
+                ->orderByDesc('target_month')
+                ->orderByRaw('COALESCE(sort_order, 999999), id')
+                ->get();
         }
 
         return Inertia::render('Pengeluaran/Index', [
@@ -529,6 +535,29 @@ class MonthlyFinancialReportController extends Controller
     public function storeOrUpdateHeader(Request $request)
     {
         return $this->storeHeader($request);
+    }
+
+    public function destroyItem(MonthlyFinancialReportItem $item)
+    {
+        $report = MonthlyFinancialReport::query()->find($item->monthly_financial_report_id);
+
+        $branchId = $report?->branch_id;
+        $month = $report?->month;
+        $year = $report?->year;
+
+        $item->delete();
+
+        if ($report) {
+            $report->recalculateClosingBalance();
+        }
+
+        if ($branchId && $month && $year) {
+            return redirect()
+                ->back()
+                ->with('success', 'Data berhasil dihapus.');
+        }
+
+        return redirect()->back()->with('success', 'Data berhasil dihapus.');
     }
 
     private function findOrCreateReport(int $branchId, int $month, int $year): MonthlyFinancialReport

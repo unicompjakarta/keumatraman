@@ -142,6 +142,15 @@ function formatDate(value) {
   year: "numeric",
 })
 }
+
+function deleteReportItem(item) {
+  if (!item?.id) return
+  if (!confirm("Hapus data ini?")) return
+
+  router.delete(route("financial-reports.items.destroy", item.id), {
+    preserveScroll: true,
+  })
+}
 </script>
 
 <template>
@@ -388,6 +397,7 @@ function formatDate(value) {
               <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Kategori</th>
               <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Keterangan</th>
               <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Jumlah</th>
+              <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Aksi</th>
             </tr>
           </thead>
 
@@ -403,10 +413,19 @@ function formatDate(value) {
               <td class="px-4 py-3 text-sm text-right font-medium text-gray-900">
                 {{ formatRupiah(item.amount) }}
               </td>
+              <td class="px-4 py-3 text-sm text-right">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  @click="deleteReportItem(item)"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
 
             <tr v-if="pengeluaranList.length === 0">
-              <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">
+              <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-400">
                 Belum ada data pengeluaran
               </td>
             </tr>
@@ -427,6 +446,7 @@ function formatDate(value) {
               <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Kategori</th>
               <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Keterangan</th>
               <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Jumlah</th>
+              <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Aksi</th>
             </tr>
           </thead>
 
@@ -444,10 +464,19 @@ function formatDate(value) {
               <td class="px-4 py-3 text-sm text-right font-medium text-gray-900">
                 {{ formatRupiah(item.amount) }}
               </td>
+              <td class="px-4 py-3 text-sm text-right">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  @click="deleteReportItem(item)"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
 
             <tr v-if="pengajuanList.length === 0">
-              <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-400">
+              <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-400">
                 Belum ada data pengajuan
               </td>
             </tr>
