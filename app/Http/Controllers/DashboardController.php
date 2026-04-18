@@ -16,6 +16,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
+    private function isMobileRequest(Request $request): bool
+    {
+        $ua = (string) $request->header('User-Agent', '');
+
+        // Common UA tokens for mobile devices
+        return (bool) preg_match(
+            '/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Windows Phone/i',
+            $ua
+        );
+    }
+
     public function index(Request $r)
     {
         /*
@@ -231,7 +242,9 @@ class DashboardController extends Controller
 
         $bills = $billsQuery->get();
 
-        return Inertia::render('Dashboard', [
+        $component = $this->isMobileRequest($r) ? 'Dashboardmobile' : 'Dashboard';
+
+        return Inertia::render($component, [
 
             'bills' => $bills,
 
