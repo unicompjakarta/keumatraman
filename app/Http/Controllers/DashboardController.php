@@ -242,11 +242,22 @@ class DashboardController extends Controller
 
         $bills = $billsQuery->get();
 
+        $summaryBills = Bill::with([
+            'student.pic',
+            'items.product',
+        ])
+            ->where('month', $month)
+            ->where('year', $year)
+            ->where('is_excluded', false)
+            ->orderBy('student_id')
+            ->get();
+
         $component = $this->isMobileRequest($r) ? 'Dashboardmobile' : 'Dashboard';
 
         return Inertia::render($component, [
 
             'bills' => $bills,
+            'summaryBills' => $summaryBills,
 
             'students' => Student::select(
                 'id',

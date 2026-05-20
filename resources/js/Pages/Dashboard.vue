@@ -7,6 +7,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
   bills: Array,
+  summaryBills: Array,
   students: Array,
   picOptions: Array,
   paymentMethods: Array,
@@ -168,8 +169,9 @@ function toNumber(val) {
 }
 
 function getItem(bill, name) {
+  const key = String(name || '').toLowerCase()
   return bill.items?.find(
-    i => i.product?.name === name
+    i => String(i.product?.name || '').toLowerCase() === key
   )
 }
 
@@ -221,36 +223,40 @@ watch(
   }
 )
 
-const summaryBills = computed(() => {
+const summaryBillsForPeriod = computed(() => {
   const month = Number(summaryFilter.value.month)
   const year = Number(summaryFilter.value.year)
+  const source = props.summaryBills?.length ? props.summaryBills : props.bills
 
-  return (props.bills || []).filter(b => {
-    // If backend doesn't provide month/year on bill, fallback to include all
+  return (source || []).filter(b => {
     if (b?.month === undefined || b?.year === undefined) return true
     return Number(b.month) === month && Number(b.year) === year
   })
 })
 
-const totalSiswaSummary = computed(() => {
-  const set = new Set()
-  for (const bill of summaryBills.value || []) {
-    const id = bill?.student?.id
-    if (id !== null && id !== undefined) {
-      set.add(`id:${id}`)
-      continue
-    }
-    const nameKey = (bill?.student?.name || '').trim().toLowerCase()
-    const phoneKey = String(bill?.student?.phone || '').replace(/\D/g, '')
-    set.add(`np:${nameKey}__${phoneKey}`)
-  }
-  return set.size
-})
+function uniqueBillsFromList(bills) {
+  const map = new Map()
 
-function getBillItemSubtotalByName(bill, name) {
+  for (const bill of bills || []) {
+    const nameKey = (bill.student?.name || '').trim().toLowerCase()
+    const phoneKey = String(bill.student?.phone || '').replace(/\D/g, '')
+    const key = `${nameKey}__${phoneKey}` || `student-${bill.student?.id || bill.id}`
+
+    if (!map.has(key)) {
+      map.set(key, bill)
+    }
+  }
+
+  return Array.from(map.values())
+}
+
+const summaryBills = computed(() => uniqueBillsFromList(summaryBillsForPeriod.value))
+
+const totalSiswaSummary = computed(() => summaryBills.value.length)
+
+function getBillItemAmountByName(bill, name) {
   const item = getItem(bill, name)
   if (!item) return 0
-  // Prefer subtotal from backend; fallback to qty*price if needed
   const subtotal = toNumber(item.subtotal)
   if (subtotal > 0) return subtotal
   return toNumber(getTotalItem(item))
@@ -262,58 +268,74 @@ function getBillItemPaidByName(bill, name) {
   return toNumber(item.paid_amount)
 }
 
+function getBillItemRemainingByName(bill, name) {
+  return Math.max(
+    0,
+    getBillItemAmountByName(bill, name) - getBillItemPaidByName(bill, name)
+  )
+}
+
 const totalTagihanInfak = computed(() =>
-  (summaryBills.value || []).reduce(
-    (s, b) => s + getBillItemSubtotalByName(b, 'infak'),
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemAmountByName(b, 'infak'),
     0
   )
 )
 
 const totalTagihanMedia = computed(() =>
-  (summaryBills.value || []).reduce(
-    (s, b) => s + getBillItemSubtotalByName(b, 'media'),
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemAmountByName(b, 'media'),
     0
   )
 )
 
 const totalTagihanTabloid = computed(() =>
-  (summaryBills.value || []).reduce(
-    (s, b) => s + getBillItemSubtotalByName(b, 'tabloid'),
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemAmountByName(b, 'tabloid'),
     0
   )
 )
 
 const totalDibayarInfak = computed(() =>
-  (summaryBills.value || []).reduce(
+  summaryBills.value.reduce(
     (s, b) => s + getBillItemPaidByName(b, 'infak'),
     0
   )
 )
 
 const totalDibayarMedia = computed(() =>
-  (summaryBills.value || []).reduce(
+  summaryBills.value.reduce(
     (s, b) => s + getBillItemPaidByName(b, 'media'),
     0
   )
 )
 
 const totalDibayarTabloid = computed(() =>
-  (summaryBills.value || []).reduce(
+  summaryBills.value.reduce(
     (s, b) => s + getBillItemPaidByName(b, 'tabloid'),
     0
   )
 )
 
 const tunggakanInfak = computed(() =>
-  toNumber(totalTagihanInfak.value) - toNumber(totalDibayarInfak.value)
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemRemainingByName(b, 'infak'),
+    0
+  )
 )
 
 const tunggakanMedia = computed(() =>
-  toNumber(totalTagihanMedia.value) - toNumber(totalDibayarMedia.value)
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemRemainingByName(b, 'media'),
+    0
+  )
 )
 
 const tunggakanTabloid = computed(() =>
-  toNumber(totalTagihanTabloid.value) - toNumber(totalDibayarTabloid.value)
+  summaryBills.value.reduce(
+    (s, b) => s + getBillItemRemainingByName(b, 'tabloid'),
+    0
+  )
 )
 
 /* =========================

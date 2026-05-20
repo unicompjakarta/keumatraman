@@ -126,13 +126,10 @@ class MonthlyFinancialReportController extends Controller
                 ->where('type', 'expense')
                 ->values();
 
-            $proposals = MonthlyFinancialReportItem::query()
-                ->whereHas('report', fn ($q) => $q->where('branch_id', $branchId))
+            $proposals = collect($report?->items ?? [])
                 ->where('type', 'proposal')
-                ->orderByDesc('target_year')
-                ->orderByDesc('target_month')
-                ->orderByRaw('COALESCE(sort_order, 999999), id')
-                ->get();
+                ->sortByDesc(fn ($item) => sprintf('%04d-%02d', (int) $item->target_year, (int) $item->target_month))
+                ->values();
         }
 
         return Inertia::render('MonthlyFinancialReports/Index', [
@@ -378,13 +375,10 @@ class MonthlyFinancialReportController extends Controller
                 ->where('type', 'expense')
                 ->values();
 
-            $pengajuanList = MonthlyFinancialReportItem::query()
-                ->whereHas('report', fn ($q) => $q->where('branch_id', $branchId))
+            $pengajuanList = collect($report?->items ?? [])
                 ->where('type', 'proposal')
-                ->orderByDesc('target_year')
-                ->orderByDesc('target_month')
-                ->orderByRaw('COALESCE(sort_order, 999999), id')
-                ->get();
+                ->sortByDesc(fn ($item) => sprintf('%04d-%02d', (int) $item->target_year, (int) $item->target_month))
+                ->values();
         }
 
         return Inertia::render('Pengeluaran/Index', [

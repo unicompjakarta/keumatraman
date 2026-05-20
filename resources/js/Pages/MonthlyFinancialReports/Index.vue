@@ -32,9 +32,11 @@ const expenseItems = computed(() =>
   (props.expenses?.length ? props.expenses : (props.report?.items ?? []).filter(i => i.type === 'expense')) ?? []
 )
 
-const proposalItems = computed(() =>
-  (props.proposals?.length ? props.proposals : (props.report?.items ?? []).filter(i => i.type === 'proposal')) ?? []
-)
+const proposalItems = computed(() => {
+  const fromReport = (props.report?.items ?? []).filter(i => i.type === 'proposal')
+  if (fromReport.length) return fromReport
+  return props.proposals ?? []
+})
 
 const headerForm = useForm({
   branch_id: props.filters.branch_id ?? '',
