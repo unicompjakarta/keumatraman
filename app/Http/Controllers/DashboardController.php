@@ -301,7 +301,9 @@ class DashboardController extends Controller
     {
         $bill->update(['is_excluded' => true]);
 
-        return back()->with('success', 'Siswa berhasil dihapus dari daftar tagihan bulan ini.');
+        return response()->json([
+            'message' => 'Siswa berhasil dihapus dari daftar tagihan bulan ini.',
+        ]);
     }
 
     public function exportXls(Request $request): StreamedResponse
